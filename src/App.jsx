@@ -3,7 +3,6 @@ import './App.css'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getAIInsights, getJournalSummary, sendSupport } from './api'
-import { getDeviceId } from './device'
 
 import {
   MOODS, GSU_CENTER, SEED_PINS, WAVE_PINS, SECRET_STRESS_PINS,
