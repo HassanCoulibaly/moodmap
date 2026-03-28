@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getAIInsights, getJournalSummary } from './api'
+import { getAIInsights, getJournalSummary, sendSupport } from './api'
+import { getDeviceId } from './device'
 
 import {
   MOODS, GSU_CENTER, SEED_PINS, WAVE_PINS, SECRET_STRESS_PINS,
@@ -54,6 +55,12 @@ export default function App() {
   const [emergencyAlert, setEmergencyAlert] = useState(null)
   const [happyPlaces, setHappyPlaces] = useState([])
   const [happyPlaceIds, setHappyPlaceIds] = useState(new Set())
+  const [supportCounts, setSupportCounts] = useState({})
+  const [supportedPins, setSupportedPins] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('moodmap_supported') || '[]')) }
+    catch { return new Set() }
+  })
+  const [supportRipple, setSupportRipple] = useState(null)
   const [joinToast, setJoinToast] = useState(null)
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem('moodmap_theme')
@@ -270,6 +277,17 @@ export default function App() {
       saveRecoveryStories(updated)
       return updated
     })
+  }
+
+  async function handleSendSupport(pinId, type) {
+    if (supportedPins.has(pinId)) return
+    setSupportRipple(pinId)
+    setTimeout(() => setSupportRipple(null), 600)
+    setSupportCounts(prev => ({ ...prev, [pinId]: (prev[pinId] || 0) + 1 }))
+    const next = new Set([...supportedPins, pinId])
+    setSupportedPins(next)
+    localStorage.setItem('moodmap_supported', JSON.stringify([...next]))
+    try { await sendSupport(pinId, type) } catch { /* optimistic update, swallow */ }
   }
 
   function activateCrisisMode() {
@@ -522,7 +540,8 @@ export default function App() {
                     isCrisis     ? 'crisis-pin'     :
                     isWave       ? 'wave-pin'        :
                     hasStory     ? 'story-pin'      :
-                    isNew        ? 'pin-new'        : ''
+                    isNew                          ? 'pin-new' :
+                    supportRipple === pin.id        ? 'pin-support-ripple' : ''
                   }
                   eventHandlers={isUserPin ? {
                     click: () => openUserPinEditor(pin.id)
@@ -547,18 +566,39 @@ export default function App() {
                     </Popup>
                   ) : !isUserPin && (
                     <Popup>
-                      {hasStory ? (
-                        <div style={{ maxWidth: 200 }}>
-                          <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                            {pin.fromEmoji} {pin.fromMood} → {pin.emoji} {pin.mood}
+                      <div className="pin-popup">
+                        {hasStory ? (
+                          <>
+                            <div className="pin-popup-mood">
+                              {pin.fromEmoji} {pin.fromMood} → {pin.emoji} {pin.mood}
+                            </div>
+                            <div className="pin-popup-story">"{pin.story}"</div>
+                          </>
+                        ) : (
+                          <div className="pin-popup-mood">{pin.emoji} {pin.mood} — {pin.time}</div>
+                        )}
+                        {supportCounts[pin.id] > 0 && (
+                          <div className="pin-popup-support-count">
+                            ❤️ {supportCounts[pin.id]} {supportCounts[pin.id] === 1 ? 'student relates' : 'students relate'}
                           </div>
-                          <div style={{ fontSize: 12, fontStyle: 'italic', color: '#555', lineHeight: 1.5 }}>
-                            "{pin.story}"
-                          </div>
+                        )}
+                        <div className="pin-popup-actions">
+                          <button
+                            className={`pin-support-btn ui-btn${supportedPins.has(pin.id) ? ' pin-support-sent' : ''}`}
+                            onClick={() => { clickedPinRef.current = true; handleSendSupport(pin.id, 'hug') }}
+                            disabled={supportedPins.has(pin.id)}
+                          >
+                            {supportedPins.has(pin.id) ? '🤗 Hug sent' : '🤗 Send a Hug'}
+                          </button>
+                          <button
+                            className={`pin-support-btn pin-support-metoo ui-btn${supportedPins.has(pin.id) ? ' pin-support-sent' : ''}`}
+                            onClick={() => { clickedPinRef.current = true; handleSendSupport(pin.id, 'metoo') }}
+                            disabled={supportedPins.has(pin.id)}
+                          >
+                            {supportedPins.has(pin.id) ? '💙 Noted' : '💙 Me Too'}
+                          </button>
                         </div>
-                      ) : (
-                        `${pin.emoji} ${pin.mood} — ${pin.time}`
-                      )}
+                      </div>
                     </Popup>
                   )}
                 </CircleMarker>

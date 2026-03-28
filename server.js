@@ -3,8 +3,12 @@ import express from 'express'
 import {
   requireEnv, setCors, setSecurityHeaders, rateLimitMiddleware,
   validateMood, validateMessage, validatePins, validateEntries,
-  isPositiveMood, callGroq, parseLLMJson, getBuilding, safeError
+  isPositiveMood, callGroq, parseLLMJson, getBuilding, safeError, getDeviceId
 } from './lib/groq.js'
+import {
+  canDeviceDropPin, createPin, updatePin as storeUpdatePin,
+  deletePin as storeDeletePin, addSupport
+} from './lib/pinStore.js'
 
 requireEnv()
 
@@ -257,6 +261,51 @@ Return ONLY the 2 lines. Nothing else.`
   } catch (e) {
     safeError(res, e, 'ReelScript')
   }
+})
+
+app.post('/api/pin', (req, res) => {
+  const deviceId = getDeviceId(req)
+  if (!deviceId) return res.status(400).json({ error: 'Missing or invalid device ID' })
+
+  const { action, pin, pinId, updates } = req.body
+
+  if (action === 'create') {
+    if (!canDeviceDropPin(deviceId)) {
+      return res.status(429).json({ error: 'Please wait before dropping another pin' })
+    }
+    if (!pin || typeof pin !== 'object') return res.status(400).json({ error: 'Invalid pin data' })
+    const stored = createPin(deviceId, pin)
+    return res.json({ pin: stored })
+  }
+
+  if (action === 'update') {
+    if (!pinId) return res.status(400).json({ error: 'Missing pinId' })
+    const result = storeUpdatePin(deviceId, pinId, updates || {})
+    if (result.error) return res.status(result.status).json({ error: result.error })
+    return res.json(result)
+  }
+
+  if (action === 'delete') {
+    if (!pinId) return res.status(400).json({ error: 'Missing pinId' })
+    const result = storeDeletePin(deviceId, pinId)
+    if (result.error) return res.status(result.status).json({ error: result.error })
+    return res.json(result)
+  }
+
+  res.status(400).json({ error: 'Invalid action' })
+})
+
+app.post('/api/support', (req, res) => {
+  const deviceId = getDeviceId(req)
+  if (!deviceId) return res.status(400).json({ error: 'Missing or invalid device ID' })
+
+  const { pinId, type } = req.body
+  if (!pinId) return res.status(400).json({ error: 'Missing pinId' })
+  if (type && !['hug', 'metoo'].includes(type)) return res.status(400).json({ error: 'Invalid type' })
+
+  const result = addSupport(deviceId, pinId, type || 'hug')
+  if (result.error) return res.status(result.status).json({ error: result.error })
+  res.json(result)
 })
 
 const PORT = process.env.PORT || 3001

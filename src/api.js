@@ -1,3 +1,5 @@
+import { getDeviceId } from './device'
+
 const BASE = import.meta.env.PROD ? '' : 'http://localhost:3001'
 
 const FETCH_TIMEOUT = 20_000
@@ -9,7 +11,10 @@ async function apiFetch(url, body) {
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': getDeviceId(),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     })
@@ -58,4 +63,20 @@ export async function getJournalSummary(entries) {
 export async function getReelScript(pins, recoveryStories = []) {
   if (pins.length === 0) return null
   return apiFetch(`${BASE}/api/generate-reel-script`, { pins, recoveryStories })
+}
+
+export async function sendSupport(pinId, type = 'hug') {
+  return apiFetch(`${BASE}/api/support`, { pinId, type })
+}
+
+export async function dropPin(pin) {
+  return apiFetch(`${BASE}/api/pin`, { action: 'create', pin })
+}
+
+export async function updatePin(pinId, updates) {
+  return apiFetch(`${BASE}/api/pin`, { action: 'update', pinId, updates })
+}
+
+export async function deletePin(pinId) {
+  return apiFetch(`${BASE}/api/pin`, { action: 'delete', pinId })
 }

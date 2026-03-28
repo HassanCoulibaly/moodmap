@@ -39,7 +39,6 @@ export default function ReelGenerator({ pins }) {
         disabled={loading || pins.length === 0}
         aria-label="Generate campus vibe check video"
       >
-        <span style={{ fontSize: 17 }}>🎬</span>
         {loading ? 'Generating...' : 'Generate Campus Vibe Check'}
       </button>
 

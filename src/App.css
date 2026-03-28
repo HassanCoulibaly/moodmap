@@ -1661,3 +1661,68 @@ textarea:focus-visible {
     transition: none !important;
   }
 }
+
+.pin-popup {
+  max-width: 210px;
+}
+
+.pin-popup-mood {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pin-popup-story {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-2, #555);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.pin-popup-support-count {
+  font-size: 11px;
+  color: var(--text-2, #888);
+  margin-bottom: 6px;
+}
+
+.pin-popup-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pin-support-btn {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #ddd);
+  background: var(--surface-1, #fff);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.pin-support-btn:hover:not(:disabled) {
+  transform: scale(1.04);
+  background: #fff0f0;
+}
+
+.pin-support-metoo:hover:not(:disabled) {
+  background: #f0f4ff;
+}
+
+.pin-support-sent {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@keyframes support-ripple {
+  0%   { stroke-width: 2;  stroke-opacity: 1; }
+  50%  { stroke-width: 20; stroke-opacity: 0.3; }
+  100% { stroke-width: 2;  stroke-opacity: 0; }
+}
+
+.pin-support-ripple {
+  animation: support-ripple 0.6s ease-out 1;
+}
