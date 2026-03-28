@@ -1,0 +1,73 @@
+.story-pin {
+  animation: star-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes story-card-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.story-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  animation: story-card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.recovery-empty {
+  line-height: 1.7;
+  padding: 12px 0;
+}
+
+.recovery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.story-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.story-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.story-emojis {
+  font-size: 17px;
+}
+
+.story-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.story-area {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.story-quote {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.7;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.story-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.story-helped {
+  font-size: 12px;
+  color: var(--text-muted);
+}

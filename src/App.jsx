@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getAIInsights, getJournalSummary } from './api'
 
-// ── Shared modules ──────────────────────────────────────────────────────────
 import {
   MOODS, GSU_CENTER, SEED_PINS, WAVE_PINS, SECRET_STRESS_PINS,
 } from './constants'
@@ -14,7 +13,6 @@ import {
   loadRecoveryStories, saveRecoveryStories,
 } from './storage'
 
-// ── Extracted components ────────────────────────────────────────────────────
 import PinDropper from './components/PinDropper'
 import MoodCount from './components/MoodCount'
 import CompanionPanel from './components/CompanionPanel'
@@ -23,8 +21,7 @@ import UpdateMoodPanel from './components/UpdateMoodPanel'
 import RecoveryFeed from './components/RecoveryFeed'
 import CrisisPanel from './components/CrisisPanel'
 import MoodJournal from './components/MoodJournal'
-
-// ─────────────────────────────────────────────────────────────────────────────
+import RelativeTime from './components/RelativeTime'
 
 export default function App() {
   const [pins, setPins] = useState(SEED_PINS)
@@ -37,7 +34,6 @@ export default function App() {
   const [waving, setWaving] = useState(false)
   const [companion, setCompanion] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
-  const [secondsAgo, setSecondsAgo] = useState(0)
   const [activityFeed, setActivityFeed] = useState([])
   const [recentCount, setRecentCount] = useState(0)
   const [crisisMode, setCrisisMode] = useState(false)
@@ -58,23 +54,21 @@ export default function App() {
   const [happyPlaces, setHappyPlaces] = useState([])
   const [happyPlaceIds, setHappyPlaceIds] = useState(new Set())
   const [joinToast, setJoinToast] = useState(null)
-  const timerRef = useRef(null)
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem('moodmap_theme')
+    if (stored === 'light' || stored === 'dark') return stored
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   const mapRef = useRef(null)
   const recentTimerRef = useRef(null)
   const clickedPinRef = useRef(false)
   const secretStressRef = useRef(null)
 
-  // ── Effects ─────────────────────────────────────────────────────────────────
-
   useEffect(() => {
-    if (!lastUpdated) return
-    setSecondsAgo(0)
-    clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => {
-      setSecondsAgo(Math.floor((Date.now() - lastUpdated) / 1000))
-    }, 1000)
-    return () => clearInterval(timerRef.current)
-  }, [lastUpdated])
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('moodmap_theme', theme)
+  }, [theme])
 
   useEffect(() => {
     function countRecent() {
@@ -127,13 +121,10 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
-
   function handleReset() {
     setPins(SEED_PINS)
     setInsights(null)
     setLastUpdated(null)
-    setSecondsAgo(0)
     setWavePinIds(new Set())
     setNewPinIds(new Set())
     setCrisisMode(false)
@@ -183,7 +174,7 @@ export default function App() {
   }
 
   function handleShowHappyPlace(place) {
-    mapRef.current?.flyTo([place.lat, place.lng], 17, { duration: 1.5 })
+    mapRef.current?.flyTo([place.lat, place.lng], 17, { duration: prefersReducedMotion ? 0 : 1.5 })
   }
 
   async function handleSecretStressWave() {
@@ -349,14 +340,13 @@ export default function App() {
 
   function handleMapClick(latlng) { setPending(latlng) }
 
-  function handleMoodSelect(mood) {
-    if (!pending) return
+  function addMoodPin(mood, location) {
     const id = Date.now()
-    const area = getArea(pending.lat)
+    const area = getArea(location.lat)
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
     setPins(prev => [...prev, {
-      id, lat: pending.lat, lng: pending.lng,
+      id, lat: location.lat, lng: location.lng,
       mood: mood.label, color: mood.color, emoji: mood.emoji,
       time, timestamp: Date.now()
     }])
@@ -370,7 +360,6 @@ export default function App() {
     setUserPins(newUserPins)
     if (newUserPins.length >= 2) generateJournal(newUserPins)
 
-    setPending(null)
     setCompanion({
       pinId: id, mood: mood.label, color: mood.color,
       extras: {
@@ -381,18 +370,35 @@ export default function App() {
     })
   }
 
+  function handleMoodSelect(mood) {
+    if (!pending) return
+    addMoodPin(mood, pending)
+    setPending(null)
+  }
+
+  function handleQuickCheckIn(mood) {
+    const jitterLat = (Math.random() - 0.5) * 0.0008
+    const jitterLng = (Math.random() - 0.5) * 0.0008
+    addMoodPin(mood, { lat: GSU_CENTER[0] + jitterLat, lng: GSU_CENTER[1] + jitterLng })
+  }
+
+  function openUserPinEditor(pinId) {
+    const pin = pins.find(p => p.id === pinId)
+    if (!pin) return
+    clickedPinRef.current = true
+    setPending(null)
+    setUpdateTarget(pin)
+  }
+
   function handleFeelBetter() {
     if (!companion) return
     setPins(prev => prev.map(p => {
       if (p.id !== companion.pinId) return p
-      // #21: prevent double-appending alpha — only add '99' to 7-char hex
       const safeColor = p.color.length === 7 ? p.color + '99' : p.color
       return { ...p, color: safeColor }
     }))
     setCompanion(null)
   }
-
-  // ── Derived values ──────────────────────────────────────────────────────────
 
   const vibeColors = {
     Happy:'#4CAF50', Excited:'#FF9800',
@@ -400,6 +406,7 @@ export default function App() {
   }
 
   const userPinIds = new Set(userPins.map(p => p.id))
+  const recentUserPins = [...userPins].slice(-5).reverse()
 
   const moodTotals = {}
   MOODS.forEach(m => { moodTotals[m.label] = 0 })
@@ -412,35 +419,39 @@ export default function App() {
     resolutionMode                ? 'rgba(76,175,80,0.07)' :
     dominantMood === 'Stressed'   ? 'rgba(244,67,54,0.05)' :
     dominantMood === 'Happy'      ? 'rgba(76,175,80,0.05)' : 'transparent'
-
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const liveCounterClassName = crisisMode && !resolutionMode
+    ? 'live-counter live-counter-danger'
+    : resolutionMode
+      ? 'live-counter live-counter-success'
+      : 'live-counter'
+  const mapTileUrl = theme === 'dark'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  const mapTileAttribution = theme === 'dark'
+    ? '&copy; OpenStreetMap contributors &copy; CARTO'
+    : '&copy; OpenStreetMap contributors'
 
   return (
-    <div style={{ width:'100vw', height:'100vh', display:'flex', flexDirection:'column' }}>
-
-      {/* Header */}
-      <header className="app-header" style={{
-        background:'#1a1a2e', color:'white', padding:'10px 20px',
-        display:'flex', alignItems:'center', gap:12, flexShrink:0
-      }}>
-        <span style={{ fontSize:22 }} role="img" aria-label="Map">🗺️</span>
+    <div className="app-root">
+      <header className="app-header">
         <div>
-          <div className="app-header-title" style={{ fontWeight:700, fontSize:20, letterSpacing:'-0.5px', fontFamily:'-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif' }}>MoodMap</div>
-          <div className="app-header-sub" style={{ fontSize:12, opacity:0.6, fontWeight:400, letterSpacing:'0.02em' }}>Anonymous community emotional pulse</div>
+          <div className="app-header-title">MoodMap</div>
+          <div className="app-header-sub">Campus emotional pulse</div>
         </div>
-        <div className="app-header-badge" style={{
-          marginLeft:'auto', background:'rgba(255,255,255,0.1)',
-          borderRadius:20, padding:'4px 14px', fontSize:13
-        }} aria-live="polite">
-          {pins.length} mood pins live
+        <div className="app-header-badge" aria-live="polite">
+          {pins.length} active
         </div>
+        <button
+          className="theme-toggle-btn"
+          onClick={() => setTheme(t => (t === 'light' ? 'dark' : 'light'))}
+          aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        >
+          {theme === 'light' ? 'Dark' : 'Light'}
+        </button>
       </header>
 
-      <div className="app-layout" style={{ flex:1, display:'flex', overflow:'hidden' }}>
-
-        {/* ── Map ──────────────────────────────────────────────────────── */}
-        <div className="app-map-area" style={{ flex:1, position:'relative' }} role="region" aria-label="Campus mood map">
-          {/* #13: Screen reader summary */}
+      <div className="app-layout">
+        <div className="app-map-area" role="region" aria-label="Campus mood map">
           <div className="sr-only" aria-live="polite">
             {pins.length} mood pins on campus. Dominant mood: {dominantMood || 'none'}.
           </div>
@@ -451,8 +462,8 @@ export default function App() {
             style={{ width:'100%', height:'100%' }}
           >
             <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="© OpenStreetMap"
+              url={mapTileUrl}
+              attribution={mapTileAttribution}
             />
             <PinDropper onDrop={handleMapClick} skipRef={clickedPinRef} />
             {pins.map(pin => {
@@ -494,11 +505,7 @@ export default function App() {
                     isNew        ? 'pin-new'        : ''
                   }
                   eventHandlers={isUserPin ? {
-                    click: () => {
-                      clickedPinRef.current = true
-                      setPending(null)
-                      setUpdateTarget(pin)
-                    }
+                    click: () => openUserPinEditor(pin.id)
                   } : {}}
                 >
                   {isHappyPlace ? (
@@ -543,31 +550,48 @@ export default function App() {
               )
             })}
           </MapContainer>
-
-          {/* Subtle background tint overlay based on dominant mood */}
           <div className="map-tint-overlay" style={{ background: mapOverlayColor }} />
-
-          {/* Floating live counter */}
-          <div className="live-counter" style={crisisMode && !resolutionMode ? {
-            background:'rgba(183,28,28,0.9)', boxShadow:'0 2px 16px rgba(183,28,28,0.5)'
-          } : resolutionMode ? {
-            background:'rgba(46,125,50,0.88)'
-          } : {}}>
+          <div className={liveCounterClassName}>
             {crisisMode && !resolutionMode
-              ? '⚠️ Crisis mode active — monitoring all zones'
+              ? 'Crisis mode active — monitoring all zones'
               : resolutionMode
-              ? '🌿 Resolution in progress…'
+              ? 'Resolution in progress…'
               : recentCount === 0
               ? 'No new drops in the last 5 min'
-              : `${recentCount} ${recentCount === 1 ? 'person' : 'people'} dropped their mood in the last 5 min`}
+              : `${recentCount} ${recentCount === 1 ? 'person' : 'people'} checked in recently`}
           </div>
 
-          {/* Companion panel */}
+          {recentUserPins.length > 0 && (
+            <div className="pin-actions-panel" aria-label="Recent pin actions">
+              <div className="pin-actions-title">Recent pins (keyboard friendly)</div>
+              <div className="pin-actions-list">
+                {recentUserPins.map(pin => (
+                  <button
+                    key={pin.id}
+                    className="pin-action-btn"
+                    onClick={() => {
+                      mapRef.current?.flyTo([pin.lat, pin.lng], 17, { duration: prefersReducedMotion ? 0 : 1.1 })
+                      openUserPinEditor(pin.id)
+                    }}
+                  >
+                    <span aria-hidden="true">{pin.emoji}</span>
+                    <span>Edit {pin.mood} near {pin.area}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="map-legend" role="note" aria-label="Map legend">
+            <div className="map-legend-title">Map legend</div>
+            <ul className="map-legend-list">
+              <li className="map-legend-item"><span className="legend-dot stress" aria-hidden="true" />Stress or anxiety cluster</li>
+              <li className="map-legend-item"><span className="legend-dot support" aria-hidden="true" />Improving or positive mood</li>
+              <li className="map-legend-item"><span className="legend-dot safety" aria-hidden="true" />Emergency escalation</li>
+            </ul>
+            <div className="legend-note">Labels and icons supplement color cues.</div>
+          </div>
           {companion && (
-            <div className="companion-panel-wrapper" style={{
-              position:'absolute', top:0, right:0, bottom:0,
-              width:320, zIndex:1000, overflowY:'auto'
-            }}>
+            <div className="companion-panel-wrapper">
               <CompanionPanel
                 mood={companion.mood}
                 color={companion.color}
@@ -590,13 +614,8 @@ export default function App() {
               />
             </div>
           )}
-
-          {/* Update mood panel */}
           {updateTarget && (
-            <div className="update-panel-wrapper" style={{
-              position:'absolute', bottom:24, left:'50%',
-              transform:'translateX(-50%)', zIndex:1000, width:340
-            }}>
+            <div className="update-panel-wrapper">
               <UpdateMoodPanel
                 pin={updateTarget}
                 onClose={() => setUpdateTarget(null)}
@@ -604,151 +623,107 @@ export default function App() {
               />
             </div>
           )}
-
-          {/* Mood picker */}
           {pending && (
-            <div className="mood-picker" style={{
-              position:'absolute', bottom:30, left:'50%',
-              transform:'translateX(-50%)', zIndex:1000,
-              background:'white', borderRadius:16, padding:'16px 20px',
-              boxShadow:'0 4px 24px rgba(0,0,0,0.18)',
-              display:'flex', flexDirection:'column', alignItems:'center', gap:10
-            }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>
+            <div className="mood-picker">
+              <div className="mood-picker-title">
                 How are you feeling here?
               </div>
-              <div style={{ display:'flex', gap:8 }}>
+              <div className="mood-picker-grid" role="group" aria-label="Choose your current mood">
                 {MOODS.map(mood => (
-                  <button key={mood.label} className="mood-picker-btn" onClick={() => handleMoodSelect(mood)}
+                  <button
+                    key={mood.label}
+                    className="mood-picker-btn"
+                    onClick={() => handleMoodSelect(mood)}
                     aria-label={`Select ${mood.label} mood`}
                     style={{
-                      background: mood.color+'22',
-                      border:`2px solid ${mood.color}`,
-                      borderRadius:12, padding:'10px 12px',
-                      cursor:'pointer', display:'flex',
-                      flexDirection:'column', alignItems:'center', gap:4,
-                      minHeight:44
-                    }}>
-                    <span style={{ fontSize:22 }} role="img" aria-hidden="true">{mood.emoji}</span>
-                    <span style={{ fontSize:11, color:'#444' }}>{mood.label}</span>
+                      '--mood-color': mood.color,
+                      '--mood-bg': `${mood.color}22`
+                    }}
+                  >
+                    <span className="mood-picker-emoji" role="img" aria-hidden="true">{mood.emoji}</span>
+                    <span className="mood-picker-label">{mood.label}</span>
                   </button>
                 ))}
               </div>
               <button
                 onClick={() => setPending(null)}
                 aria-label="Cancel mood selection"
-                style={{ fontSize:12, color:'#636363', background:'none', border:'none', cursor:'pointer', minHeight:44, padding:'8px 16px' }}
+                className="ghost-link-btn"
               >
                 Cancel
               </button>
             </div>
           )}
         </div>
-
-        {/* ── Sidebar ──────────────────────────────────────────────────── */}
-        <aside className="app-sidebar" style={{
-          width:300, background:'#f8f9fa',
-          borderLeft:'1px solid #e0e0e0',
-          display:'flex', flexDirection:'column',
-          overflow:'auto', padding:16, gap:16
-        }}>
-
-          {/* Emergency counselor alert */}
+        <aside className="app-sidebar">
           {emergencyAlert && (
             <div className="emergency-counselor-banner">
-              <div style={{ fontWeight:800, fontSize:13, letterSpacing:0.3, marginBottom:6, display:'flex', alignItems:'center', gap:7 }}>
-                <span style={{ fontSize:18 }}>🆘</span> POSSIBLE EMERGENCY
+              <div className="emergency-counselor-title">
+                POSSIBLE EMERGENCY
               </div>
-              <div style={{ fontSize:12, opacity:0.93, lineHeight:1.65, marginBottom:12 }}>
+              <div className="emergency-counselor-body">
                 Student near <strong>{emergencyAlert.area}</strong> may need immediate assistance. Emergency keywords detected in companion chat.
               </div>
               <a
                 href="tel:+14044135717"
-                style={{
-                  display:'block', width:'100%', padding:'10px 0',
-                  borderRadius:10, background:'white',
-                  color:'#b71c1c', fontWeight:800, fontSize:13,
-                  textAlign:'center', textDecoration:'none',
-                  boxSizing:'border-box'
-                }}
+                className="emergency-call-btn"
               >
-                📞 Alert Campus Police
+                Alert Campus Police
               </a>
               <button
                 onClick={() => setEmergencyAlert(null)}
                 aria-label="Dismiss emergency alert"
-                style={{
-                  marginTop:8, width:'100%', padding:'7px 0',
-                  borderRadius:10, border:'1px solid rgba(255,255,255,0.3)',
-                  background:'transparent', color:'rgba(255,255,255,0.7)',
-                  fontSize:11, cursor:'pointer', minHeight:44
-                }}
+                className="emergency-dismiss-btn"
               >
                 Dismiss
               </button>
             </div>
           )}
 
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #eee' }}>
-            <div style={{ fontWeight:600, fontSize:13, marginBottom:10, color:'#333' }}>
+          <div className="panel-card">
+            <div className="panel-title">
               Live mood breakdown
             </div>
             <MoodCount pins={pins} />
           </div>
-
-          {/* Live activity feed */}
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #eee' }}>
-            <div style={{ fontWeight:600, fontSize:13, marginBottom:10, color:'#333', display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ width:7, height:7, borderRadius:'50%', background:'#4CAF50', display:'inline-block', boxShadow:'0 0 0 2px #4CAF5044' }} />
+          <div className="panel-card">
+            <div className="panel-title panel-title-inline">
+              <span className="panel-live-dot" />
               Live activity
             </div>
             {activityFeed.length === 0 ? (
-              <div style={{ fontSize:12, color:'#767676', textAlign:'center', padding:'8px 0' }}>
+              <div className="panel-empty">
                 Drop a mood on the map…
               </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:5, overflow:'hidden' }}>
+              <div className="activity-feed-list">
                 {activityFeed.map(entry => (
-                  <div key={entry.id} className="activity-entry" style={{
-                    fontSize:12, color:'#444', padding:'7px 10px',
-                    background:'#f8f9fa', borderRadius:8, lineHeight:1.5
-                  }}>
+                  <div key={entry.id} className="activity-entry activity-entry-row">
                     {entry.emoji} Someone near <strong>{entry.area}</strong> is feeling {entry.mood}
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Happy Places Now */}
           {happyPlaces.length > 0 && (
-            <div style={{ background:'#fffbeb', borderRadius:12, padding:14, border:'1px solid #fde68a' }}>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:10, color:'#78350f', display:'flex', alignItems:'center', gap:6 }}>
-                <span className="happy-place-sidebar-glow">✨</span> Happy Places Now
+            <div className="happy-places-card">
+              <div className="happy-places-title">
+                Happy Places Now
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div className="happy-places-list">
                 {happyPlaces.map(place => (
-                  <div key={place.id} style={{
-                    background:'white', borderRadius:10, padding:'10px 12px',
-                    border:'1px solid #fde68a', display:'flex',
-                    alignItems:'center', justifyContent:'space-between', gap:8
-                  }}>
+                  <div key={place.id} className="happy-place-row">
                     <div>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#92400e', marginBottom:2 }}>
+                      <div className="happy-place-row-title">
                         {place.emoji} near {place.area}
                       </div>
-                      <div style={{ fontSize:11, color:'#b45309' }}>
+                      <div className="happy-place-row-meta">
                         {place.count} {place.count === 1 ? 'person' : 'people'} — welcoming company
                       </div>
                     </div>
                     <button
                       onClick={() => handleShowHappyPlace(place)}
-                      style={{
-                        background:'#d97706', color:'white',
-                        border:'none', borderRadius:8,
-                        padding:'5px 10px', fontSize:10,
-                        fontWeight:700, cursor:'pointer', flexShrink:0
-                      }}
+                      className="happy-place-find-btn"
                     >
                       Find it
                     </button>
@@ -757,8 +732,6 @@ export default function App() {
               </div>
             </div>
           )}
-
-          {/* Campus Crisis Mode */}
           {crisisMode ? (
             <CrisisPanel
               onDeactivate={deactivateCrisisMode}
@@ -770,17 +743,8 @@ export default function App() {
               className="crisis-toggle-btn"
               onClick={activateCrisisMode}
               aria-label="Activate campus crisis mode"
-              style={{
-                background:'linear-gradient(135deg, #7f0000, #b71c1c)',
-                color:'white', border:'none', borderRadius:10,
-                padding:'13px 0', fontWeight:700, fontSize:13,
-                cursor:'pointer', width:'100%',
-                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                minHeight:44
-              }}
             >
-              <span style={{ fontSize:17 }}>🚨</span>
-              Activate Campus Crisis Mode
+              Activate Crisis Mode
             </button>
           )}
 
@@ -788,54 +752,38 @@ export default function App() {
             onClick={() => handleAnalyse()}
             disabled={loading || waving}
             aria-label="Get AI insights on campus mood"
-            style={{
-              background: (loading || waving) ? '#ccc' : '#1a1a2e',
-              color:'white', border:'none', borderRadius:10,
-              padding:'12px 0', fontWeight:600, fontSize:14,
-              cursor: (loading || waving) ? 'not-allowed' : 'pointer', width:'100%',
-              minHeight:44
-            }}
+            className="primary-cta-btn"
           >
-            {loading ? '🤖 Analysing...' : '✨ Get AI Insights'}
+            {loading ? 'Analysing…' : 'Get AI Insights'}
           </button>
 
           <button
             onClick={simulateStressWave}
             disabled={loading || waving}
             aria-label="Simulate a stress wave on the map"
-            style={{
-              background: (loading || waving) ? '#ccc' : '#b71c1c',
-              color:'white', border:'none', borderRadius:10,
-              padding:'12px 0', fontWeight:600, fontSize:14,
-              cursor: (loading || waving) ? 'not-allowed' : 'pointer', width:'100%',
-              transition: 'background 0.2s',
-              minHeight:44
-            }}
+            className="danger-cta-btn"
           >
-            {waving ? '🌊 Spreading...' : loading ? '🤖 Analysing...' : '🚨 Simulate Stress Wave'}
+            {waving ? 'Spreading…' : loading ? 'Analysing…' : 'Simulate Stress Wave'}
           </button>
 
           {lastUpdated && (
-            <div style={{ fontSize:11, color:'#636363', textAlign:'center' }}>
-              Last updated: {secondsAgo === 0 ? 'just now' : `${secondsAgo}s ago`}
+            <div className="last-updated-text">
+              Last updated: <RelativeTime timestamp={lastUpdated} />
             </div>
           )}
 
           {insights && (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #eee' }}>
-                <div style={{ fontSize:11, color:'#636363', marginBottom:4 }}>CAMPUS VIBE RIGHT NOW</div>
-                <div style={{
-                  fontSize:22, fontWeight:700,
-                  color: vibeColors[insights.vibe] || '#333'
-                }}>
+            <div className="insights-stack">
+              <div className="panel-card">
+                <div className="insights-kicker">CAMPUS VIBE RIGHT NOW</div>
+                <div className="insights-vibe" style={{ color: vibeColors[insights.vibe] || 'var(--text-1)' }}>
                   {insights.vibe}
                 </div>
               </div>
 
-              <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #eee' }}>
-                <div style={{ fontSize:11, color:'#636363', marginBottom:6 }}>HOTSPOT DETECTED</div>
-                <div style={{ fontSize:13, color:'#333', lineHeight:1.5 }}>
+              <div className="panel-card">
+                <div className="insights-kicker">HOTSPOT DETECTED</div>
+                <div className="insights-hotspot">
                   {insights.hotspot}
                 </div>
               </div>
@@ -843,6 +791,24 @@ export default function App() {
               <CounselorAlert vibe={insights.vibe} hotspot={insights.hotspot} />
             </div>
           )}
+
+          <div className="quick-checkin-card" role="group" aria-label="Quick mood check-in">
+            <div className="quick-checkin-title">Quick check-in</div>
+            <div className="quick-checkin-grid">
+              {MOODS.map(mood => (
+                <button
+                  key={mood.label}
+                  className="quick-checkin-btn"
+                  onClick={() => handleQuickCheckIn(mood)}
+                  aria-label={`Quick check in as ${mood.label}`}
+                  style={{ '--quick-color': mood.color }}
+                >
+                  <span aria-hidden="true">{mood.emoji}</span>
+                  <span>{mood.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <RecoveryFeed stories={recoveryStories} onHeart={handleHeartStory} />
 
@@ -853,53 +819,40 @@ export default function App() {
             loadingJournal={loadingJournal}
           />
 
-          <div style={{
-            background:'#e8f5e9', borderRadius:12, padding:14,
-            fontSize:12, color:'#2e7d32', lineHeight:1.6
-          }}>
+          <div className="howto-card">
             <strong>How to use:</strong><br/>
             Click anywhere on the map to drop your mood anonymously. Hit "Get AI Insights" to see what the campus is feeling.
           </div>
 
         </aside>
       </div>
-
-      {/* ── Secret demo controls (Ctrl+Shift+R to show/hide) ─────────────── */}
       {showResetBtn && !showResetConfirm && (
         <button
           className="reset-btn"
           onClick={() => setShowResetConfirm(true)}
           aria-label="Reset demo"
         >
-          🔄 Reset Demo
+          Reset Demo
         </button>
       )}
 
       {showResetConfirm && (
         <div className="reset-confirm">
-          <div style={{ fontSize:13, color:'#333', lineHeight:1.65, marginBottom:14 }}>
+          <div className="reset-confirm-body">
             Reset map to 40 seed pins? This clears all live pins added during demo.
           </div>
-          <div style={{ display:'flex', gap:8 }}>
+          <div className="reset-confirm-actions">
             <button
               onClick={handleReset}
               aria-label="Confirm reset"
-              style={{
-                flex:1, padding:'9px 0', borderRadius:9, border:'none',
-                background:'#b71c1c', color:'white',
-                fontWeight:700, fontSize:12, cursor:'pointer', minHeight:44
-              }}
+              className="reset-confirm-yes"
             >
               Yes, Reset
             </button>
             <button
               onClick={() => { setShowResetConfirm(false); setShowResetBtn(false) }}
               aria-label="Cancel reset"
-              style={{
-                flex:1, padding:'9px 0', borderRadius:9,
-                border:'1px solid #ddd', background:'white',
-                fontSize:12, color:'#636363', cursor:'pointer', minHeight:44
-              }}
+              className="reset-confirm-no"
             >
               Cancel
             </button>
@@ -907,26 +860,20 @@ export default function App() {
         </div>
       )}
 
-      {resetFlash && <div className="demo-flash">✅ Demo reset!</div>}
-
-      {/* Error toast (#11) */}
+      {resetFlash && <div className="demo-flash">Demo reset</div>}
       {errorToast && (
         <div className="error-toast" role="alert">
-          <span style={{ marginRight:8 }}>⚠️</span>
           {errorToast}
           <button
             onClick={() => setErrorToast(null)}
             aria-label="Dismiss error"
-            style={{ marginLeft:12, background:'none', border:'none', color:'white', fontSize:16, cursor:'pointer', lineHeight:1 }}
+            className="error-toast-dismiss"
           >✕</button>
         </div>
       )}
-
-      {/* Join Happy Place warm message toast */}
       {joinToast && (
         <div className="join-toast">
-          <div style={{ fontSize:16, marginBottom:6 }}>🌟</div>
-          <div style={{ fontSize:13, lineHeight:1.7 }}>{joinToast}</div>
+          <div className="join-toast-text">{joinToast}</div>
         </div>
       )}
     </div>

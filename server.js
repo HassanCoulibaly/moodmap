@@ -6,18 +6,15 @@ import {
   isPositiveMood, callGroq, parseLLMJson, getBuilding, safeError
 } from './lib/groq.js'
 
-// Fail fast if LLM API key is missing
 requireEnv()
 
 const app = express()
 
-// Security headers on all responses (#17)
 app.use((req, res, next) => {
   setSecurityHeaders(res)
   next()
 })
 
-// CORS middleware — uses shared origin checking
 app.use((req, res, next) => {
   setCors(req, res)
   if (req.method === 'OPTIONS') return res.status(200).end()
@@ -26,10 +23,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50kb' }))
 
-// Rate limiting (#7)
 app.use('/api', rateLimitMiddleware)
-
-// ─── /api/insights ────────────────────────────────────────────────────────────
 
 app.post('/api/insights', async (req, res) => {
   try {
@@ -57,8 +51,6 @@ Only return the JSON. No extra text.`,
     safeError(res, e, 'Insights')
   }
 })
-
-// ─── /api/comfort ─────────────────────────────────────────────────────────────
 
 function ordinal(n) { return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th` }
 
@@ -145,8 +137,6 @@ ${jsonShape}`
   }
 })
 
-// ─── /api/chat ────────────────────────────────────────────────────────────────
-
 app.post('/api/chat', async (req, res) => {
   try {
     const mood = validateMood(req.body?.mood)
@@ -167,8 +157,6 @@ Do not introduce yourself. Just respond naturally.`,
     safeError(res, e, 'Chat')
   }
 })
-
-// ─── /api/journal ─────────────────────────────────────────────────────────────
 
 app.post('/api/journal', async (req, res) => {
   try {

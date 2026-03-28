@@ -1,0 +1,187 @@
+@keyframes crisis-ripple {
+  0%   { stroke-width: 2;  stroke-opacity: 1;   fill-opacity: 0.95; }
+  30%  { stroke-width: 22; stroke-opacity: 0.55; fill-opacity: 1;   }
+  58%  { stroke-width: 2;  stroke-opacity: 1;   fill-opacity: 0.95; }
+  80%  { stroke-width: 12; stroke-opacity: 0.35; fill-opacity: 1;   }
+  100% { stroke-width: 2;  stroke-opacity: 1;   fill-opacity: 0.95; }
+}
+
+.crisis-pin {
+  animation: crisis-ripple 0.75s ease-in-out infinite;
+}
+
+@keyframes crisis-flash {
+  0%, 100% { box-shadow: 0 0 0   rgba(183,28,28,0);    }
+  50%       { box-shadow: 0 0 22px rgba(183,28,28,0.55); }
+}
+
+.crisis-banner {
+  animation: crisis-flash 1.5s ease-in-out infinite;
+}
+
+.crisis-action {
+  animation: action-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.crisis-toggle-btn {
+  animation: none;
+}
+
+.crisis-confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  color: white;
+}
+
+.crisis-confirm-btn:hover  { filter: brightness(1.1); }
+
+.crisis-confirm-btn:active { transform: scale(0.96); }
+
+.crisis-confirm-btn {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.crisis-toggle-btn {
+  width: 100%;
+  min-height: 44px;
+  background: #b71c1c;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.crisis-panel-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crisis-banner-title {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: uppercase;
+}
+
+.crisis-banner-icon {
+  font-size: 18px;
+}
+
+.crisis-banner-subtext {
+  font-size: 12px;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.crisis-actions-card {
+  background: var(--surface-1);
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, #b71c1c 25%, var(--border));
+}
+
+.crisis-actions-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b71c1c;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.crisis-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crisis-action {
+  background: color-mix(in srgb, #b71c1c 6%, var(--surface-1));
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #b71c1c 20%, var(--border));
+}
+
+.crisis-action-text-row {
+  font-size: 12px;
+  color: var(--text-1);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  line-height: 1.5;
+}
+
+.crisis-action-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.crisis-sent-row {
+  font-size: 12px;
+}
+
+.crisis-sent-check {
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+}
+
+.crisis-confirm-btn {
+  background: #b71c1c;
+}
+
+.crisis-resolution-btn,
+.crisis-deactivate-btn {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.crisis-resolution-btn {
+  border: none;
+  background: #1f7a45;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.crisis-resolution-btn:disabled {
+  background: #4caf50;
+  cursor: default;
+}
+
+.crisis-deactivate-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  transition: background 0.15s;
+}
+
+.crisis-deactivate-btn:hover {
+  background: var(--surface-2);
+}

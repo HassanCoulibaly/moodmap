@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { POSITIVE_MOODS } from '../constants'
 import { detectLevel } from '../utils'
 import { getAIComfort, getAIChat } from '../api'
+import './CompanionPanel.css'
 
 export default function CompanionPanel({ mood, color, onClose, onFeelBetter, extras = {},
   onEmergency, onSafeConfirmed, onMakeHappyPlace, happyPlaces = [], onShowHappyPlace }) {
@@ -11,9 +12,8 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
   const [chatInput, setChatInput] = useState('')
   const [chatHistory, setChatHistory] = useState([])
   const [chatTyping, setChatTyping] = useState(false)
-  // 0=none, 1=L1 emotional, 2=L2 soft threat, 3=L3 full emergency
   const [emergencyLevel, setEmergencyLevel] = useState(0)
-  const emergencyLevelRef = useRef(0) // #6: sync ref to avoid stale closures
+  const emergencyLevelRef = useRef(0)
   const [comfortError, setComfortError] = useState(false)
   const [helpNowQuestion, setHelpNowQuestion] = useState(false)
   const msgTimestampsRef = useRef([])
@@ -27,7 +27,6 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
   const activeHappyPlaces = happyPlaces.filter(p => !p.expired)
   const speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
-  // #16: memoize extras to stabilize dependency
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableExtras = useMemo(() => extras, [extras.timeOfDay, extras.pinNumber, extras.randomSeed])
 
@@ -54,7 +53,6 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatHistory, chatTyping])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop()
@@ -110,17 +108,13 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
     setChatInput('')
     setChatHistory(h => [...h, { from: 'user', text: msg }])
 
-    // ── Track message timestamps for escalation (3+ in 60s)
     const now = Date.now()
     msgTimestampsRef.current = [...msgTimestampsRef.current, now]
       .filter(t => now - t < 60000)
     const recentCount = msgTimestampsRef.current.length
 
-    // ── Detect level of this specific message
     const msgLevel = detectLevel(msg)
 
-    // ── Apply escalation: 3+ rapid msgs while already L1/L2 bumps level
-    // #6 FIX: Read from ref (always current) instead of relying on setState callback
     const prev = emergencyLevelRef.current
     let effectiveLevel
     if (recentCount >= 3 && prev >= 1) {
@@ -131,7 +125,6 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
     setEmergencyLevel(effectiveLevel)
     emergencyLevelRef.current = effectiveLevel
 
-    // ── L3: Full emergency
     if (effectiveLevel >= 3) {
       onEmergency?.()
       setChatHistory(h => [...h, {
@@ -142,7 +135,6 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
       return
     }
 
-    // ── L2: Soft safety check
     if (effectiveLevel === 2) {
       setChatHistory(h => [...h, {
         from: 'ai',
@@ -152,7 +144,6 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
       return
     }
 
-    // ── L1 or 0: AI responds normally
     setChatTyping(true)
     try {
       const { reply } = await getAIChat(mood, msg)
@@ -180,21 +171,23 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
 
   const bg = isPositive ? '#f0fdf4' : '#fff8f8'
   const border = `2px solid ${color}33`
+  const bubbleStyle = {
+    '--bubble-user': color,
+    '--bubble-user-text': 'white',
+  }
 
   return (
-    <div className="companion-panel" style={{ borderTop: `4px solid ${color}` }}>
-
-      {/* ── L3: Full-screen emergency overlay */}
+    <div className="companion-panel" style={{ borderTop: `4px solid ${color}`, ...bubbleStyle }}>
       {emergencyLevel >= 3 && (
         <div className="emergency-overlay">
           <div className="emergency-box">
-            <div className="emergency-title">🚨 ARE YOU IN IMMEDIATE DANGER?</div>
+            <div className="emergency-title">ARE YOU IN IMMEDIATE DANGER?</div>
             <div className="emergency-btns">
               <a href="tel:911" className="emergency-btn emergency-btn-911">
-                📞 CALL 911
+                CALL 911
               </a>
               <a href="tel:+14044135717" className="emergency-btn emergency-btn-police">
-                📞 CALL GSU CAMPUS POLICE
+                CALL GSU CAMPUS POLICE
               </a>
               <button className="emergency-btn emergency-btn-safe" onClick={handleSafe}>
                 ✓ I AM SAFE — False Alarm
@@ -207,120 +200,86 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
           </div>
         </div>
       )}
-
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:22 }}>{isPositive ? '🌟' : '🤗'}</span>
-          <span style={{ fontWeight:700, fontSize:14, color:'#222' }}>
+      <div className="companion-head">
+        <div className="companion-head-left">
+          <span className="companion-head-emoji">{isPositive ? '🌟' : '🤗'}</span>
+          <span className="companion-head-title">
             {isPositive ? 'Your vibe is amazing!' : 'Hey, I got you.'}
           </span>
         </div>
-        <button onClick={onClose} aria-label="Close companion panel" style={{
-          background:'none', border:'none', fontSize:18,
-          cursor:'pointer', color:'#767676', lineHeight:1, minHeight:44, minWidth:44
-        }}>✕</button>
+        <button onClick={onClose} aria-label="Close companion panel" className="panel-close-btn">✕</button>
       </div>
 
       {typing ? (
-        <div style={{ display:'flex', gap:5, padding:'10px 0', alignItems:'center' }}>
-          <span style={{ fontSize:12, color:'#636363' }}>typing</span>
+        <div className="companion-typing-row">
+          <span className="companion-typing-label">typing</span>
           <div className="typing-dots">
             <span style={{ background: color }} /><span style={{ background: color }} /><span style={{ background: color }} />
           </div>
         </div>
       ) : comfort && (
         <>
-          {/* Error notice */}
           {comfortError && (
-            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:10, padding:'8px 12px', marginBottom:10, fontSize:11, color:'#991b1b', lineHeight:1.5 }}>
-              ⚠️ Couldn't reach the AI — showing a fallback message
+            <div className="companion-error-box">
+              Couldn’t reach the AI — showing a fallback message
             </div>
           )}
-          {/* Message */}
-          <div style={{ background: bg, border, borderRadius:12, padding:12, marginBottom:10, fontSize:13, lineHeight:1.7, color:'#333' }}>
+          <div className="companion-main-message" style={{ background: bg, border }}>
             {comfort.message}
           </div>
 
-          {/* Joke / fun fact */}
-          <div style={{ background:'#fffbea', border:'1px solid #fde68a', borderRadius:10, padding:10, marginBottom:10, fontSize:12, color:'#78350f', lineHeight:1.6 }}>
-            💡 {comfort.joke}
+          <div className="companion-joke-box">
+            {comfort.joke}
           </div>
 
-          {/* Action */}
-          <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:10 }}>
-            <span style={{ fontSize:16, marginTop:1 }}>🎯</span>
-            <div style={{ fontSize:13, color:'#444', lineHeight:1.6 }}>
+          <div className="companion-action-row">
+            <div className="companion-action-text">
               <strong>Right now:</strong> {comfort.action}
             </div>
           </div>
 
-          {/* Reminder */}
-          <div style={{
-            borderLeft: `3px solid ${color}`, paddingLeft:10,
-            fontSize:12, color:'#555', fontStyle:'italic', lineHeight:1.6, marginBottom:10
-          }}>
+          <div className="companion-reminder" style={{ borderLeft: `3px solid ${color}` }}>
             {comfort.reminder}
           </div>
 
-          {/* Music vibes */}
           {comfort.musicVibes && (
-            <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:10 }}>
-              <span style={{ fontSize:16, flexShrink:0, marginTop:1 }}>🎵</span>
-              <div style={{ fontSize:12, color:'#444', lineHeight:1.6 }}>
+            <div className="companion-music-row">
+              <div className="companion-action-text">
                 <strong>Right now:</strong> {comfort.musicVibes}
               </div>
             </div>
           )}
 
-          {/* Recovery / reflection prompt */}
           {comfort.recoveryPrompt && (
-            <div style={{
-              background:'#f8f4ff', borderRadius:10, padding:'9px 12px',
-              fontSize:12, color:'#7c3aed', lineHeight:1.6, marginBottom:14,
-              fontStyle:'italic'
-            }}>
-              💭 {comfort.recoveryPrompt}
+            <div className="companion-recovery-prompt">
+              {comfort.recoveryPrompt}
             </div>
           )}
 
-          {/* Buttons */}
           {isPositive ? (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <button onClick={onClose} style={{
-                width:'100%', padding:'10px 0', borderRadius:10, border:'none',
-                background: color, color:'white', fontWeight:700, fontSize:13, cursor:'pointer'
-              }}>
-                Keep spreading good vibes ✨
+            <div className="companion-button-stack">
+              <button onClick={onClose} className="companion-primary-btn" style={{ '--companion-btn': color }}>
+                Keep spreading good vibes
               </button>
 
-              {/* Happy Place prompt */}
               {!happyPlaceDecided && (
                 <div className="happy-place-prompt">
-                  <div style={{ fontSize:13, fontWeight:700, color:'#854d0e', marginBottom:3 }}>
-                    ✨ Make this a Happy Place?
+                  <div className="happy-prompt-title">
+                    Make this a Happy Place?
                   </div>
-                  <div style={{ fontSize:11, color:'#92400e', marginBottom:10, lineHeight:1.5 }}>
+                  <div className="happy-prompt-copy">
                     Invite others who are struggling to come find your good energy here.
                   </div>
-                  <div style={{ display:'flex', gap:7 }}>
+                  <div className="happy-prompt-actions">
                     <button
                       onClick={() => { setHappyPlaceDecided(true); setMadeHappyPlace(true); onMakeHappyPlace?.() }}
-                      style={{
-                        flex:2, padding:'9px 0', borderRadius:9, border:'none',
-                        background:'#d97706', color:'white',
-                        fontWeight:700, fontSize:12, cursor:'pointer'
-                      }}
+                      className="happy-prompt-yes"
                     >
-                      Yes, open this spot 🌟
+                      Yes, open this spot
                     </button>
                     <button
                       onClick={() => setHappyPlaceDecided(true)}
-                      style={{
-                        flex:1, padding:'9px 0', borderRadius:9,
-                        border:'1px solid #e0c97f', background:'transparent',
-                        fontSize:11, color:'#92400e', cursor:'pointer'
-                      }}
+                      className="happy-prompt-no"
                     >
                       Keep private
                     </button>
@@ -328,44 +287,30 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
                 </div>
               )}
               {madeHappyPlace && (
-                <div style={{
-                  background:'#fef3c7', borderRadius:10, padding:'10px 12px',
-                  fontSize:12, color:'#78350f', lineHeight:1.6,
-                  border:'1px solid #fde68a', textAlign:'center'
-                }}>
-                  🌟 Happy Place created! Others can now see your spot and join your energy.
+                <div className="happy-created-box">
+                  Happy Place created! Others can now see your spot and join your energy.
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {/* Nearby Happy Places — shown to struggling users */}
+            <div className="companion-button-stack">
               {activeHappyPlaces.length > 0 && (
                 <div className="nearby-happy-places">
-                  <div style={{ fontSize:12, fontWeight:700, color:'#1e3a5f', marginBottom:4 }}>
+                  <div className="nearby-happy-title">
                     You don't have to be alone right now.
                   </div>
-                  <div style={{ fontSize:11, color:'#374151', lineHeight:1.6, marginBottom:8 }}>
+                  <div className="nearby-happy-copy">
                     There are Happy Places nearby where people are gathered and welcoming company.
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  <div className="nearby-happy-list">
                     {activeHappyPlaces.slice(0, 3).map(place => (
-                      <div key={place.id} style={{
-                        display:'flex', alignItems:'center', justifyContent:'space-between',
-                        gap:8, background:'#fffbeb', borderRadius:8,
-                        padding:'7px 10px', border:'1px solid #fde68a'
-                      }}>
-                        <span style={{ fontSize:12, color:'#78350f' }}>
+                      <div key={place.id} className="nearby-happy-row">
+                        <span className="nearby-happy-row-text">
                           😊 <strong>near {place.area}</strong> — {place.count} {place.count === 1 ? 'person' : 'people'}
                         </span>
                         <button
                           onClick={() => onShowHappyPlace?.(place)}
-                          style={{
-                            background:'#d97706', color:'white',
-                            border:'none', borderRadius:8,
-                            padding:'4px 10px', fontSize:10,
-                            fontWeight:700, cursor:'pointer', flexShrink:0
-                          }}
+                          className="nearby-happy-btn"
                         >
                           Show me
                         </button>
@@ -376,78 +321,47 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
               )}
 
               {!showChat && (
-                <button onClick={() => setShowChat(true)} style={{
-                  width:'100%', padding:'10px 0', borderRadius:10, border:`2px solid ${color}`,
-                  background:'white', color: color, fontWeight:700, fontSize:13, cursor:'pointer'
-                }}>
-                  💬 Talk to me
+                <button onClick={() => setShowChat(true)} className="companion-outline-btn" style={{ '--companion-btn': color }}>
+                  Talk to me
                 </button>
               )}
-              <button onClick={onFeelBetter} style={{
-                width:'100%', padding:'10px 0', borderRadius:10, border:'none',
-                background: color, color:'white', fontWeight:700, fontSize:13, cursor:'pointer'
-              }}>
-                I feel a bit better 💛
+              <button onClick={onFeelBetter} className="companion-primary-btn" style={{ '--companion-btn': color }}>
+                I feel a bit better
               </button>
             </div>
           )}
 
-          {/* Chat */}
           {showChat && (
-            <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:8 }}>
-
-              {/* Header row — privacy note + read-aloud toggle */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <div style={{ fontSize:11, color:'#636363' }}>
-                  Anonymous — nothing is saved 🔒
+            <div className="companion-chat-wrap">
+              <div className="companion-chat-toprow">
+                <div className="companion-chat-privacy">
+                  Anonymous — nothing is saved
                 </div>
                 <button
                   onClick={() => { if (readAloud) window.speechSynthesis?.cancel(); setReadAloud(r => !r) }}
                   title={readAloud ? 'Turn off read aloud' : 'Read AI replies aloud'}
-                  style={{
-                    background: readAloud ? `${color}18` : 'transparent',
-                    border: `1.5px solid ${readAloud ? color : '#ddd'}`,
-                    borderRadius:20, padding:'3px 10px',
-                    fontSize:12, cursor:'pointer',
-                    color: readAloud ? color : '#aaa',
-                    display:'flex', alignItems:'center', gap:4,
-                    transition:'all 0.2s'
-                  }}
+                  className="companion-audio-toggle"
+                  style={{ '--audio-color': color, '--audio-on': readAloud ? `${color}18` : 'transparent' }}
                 >
-                  {readAloud ? '🔊' : '🔇'} <span style={{ fontSize:10 }}>{readAloud ? 'On' : 'Off'}</span>
+                  {readAloud ? '🔊' : '🔇'} <span className="companion-audio-state">{readAloud ? 'On' : 'Off'}</span>
                 </button>
               </div>
-
-              {/* ── L2: Yellow safety banner */}
               {emergencyLevel === 2 && (
                 <div className="emergency-l2-banner">
-                  📞 If you need help: <strong>Campus Police 404-413-5717</strong>
+                  If you need help: <strong>Campus Police 404-413-5717</strong>
                 </div>
               )}
-
-              {/* Message bubbles */}
-              <div style={{
-                maxHeight:180, overflowY:'auto', display:'flex',
-                flexDirection:'column', gap:6, padding:'4px 0'
-              }}>
+              <div className="companion-chat-log">
                 {chatHistory.length === 0 && (
-                  <div style={{ fontSize:12, color:'#767676', textAlign:'center', padding:'8px 0' }}>
+                  <div className="companion-chat-empty">
                     Tell me what's on your mind...
                   </div>
                 )}
                 {chatHistory.map((m, i) => (
-                  <div key={i} style={{ display:'flex', flexDirection:'column', alignItems: m.from === 'user' ? 'flex-end' : 'flex-start' }}>
-                    <div style={{
-                      alignSelf: m.from === 'user' ? 'flex-end' : 'flex-start',
-                      background: m.from === 'user' ? color : '#f0f0f0',
-                      color: m.from === 'user' ? 'white' : '#333',
-                      borderRadius: m.from === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                      padding:'8px 12px', fontSize:12, lineHeight:1.6,
-                      maxWidth:'85%'
-                    }}>
+                  <div key={i} className={`chat-row ${m.from === 'user' ? 'chat-row-user' : 'chat-row-ai'}`}>
+                    <div className={`chat-bubble ${m.from === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}`}>
                       {m.text}
                     </div>
-                    {/* L1: subtle help link under every AI message */}
                     {m.from === 'ai' && emergencyLevel >= 1 && (
                       <button
                         className="emergency-tap-link"
@@ -459,14 +373,12 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
                   </div>
                 ))}
                 {chatTyping && (
-                  <div style={{ alignSelf:'flex-start', background:'#f0f0f0', borderRadius:'14px 14px 14px 4px', padding:'8px 12px', display:'flex', gap:4, alignItems:'center' }}>
+                  <div className="chat-typing-bubble">
                     <div className="typing-dots"><span /><span /><span /></div>
                   </div>
                 )}
                 <div ref={chatEndRef} />
               </div>
-
-              {/* ── L2: "I need help now" button / confirm question */}
               {emergencyLevel === 2 && !helpNowQuestion && (
                 <button
                   className="help-now-btn"
@@ -477,10 +389,10 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
               )}
               {emergencyLevel === 2 && helpNowQuestion && (
                 <div className="help-now-question">
-                  <div style={{ fontSize:12, fontWeight:600, color:'#7c2d12', marginBottom:8, lineHeight:1.5 }}>
+                  <div className="help-now-question-copy">
                     Are you in immediate physical danger right now?
                   </div>
-                  <div style={{ display:'flex', gap:8 }}>
+                  <div className="help-now-actions">
                     <button
                       className="help-now-yes"
                       onClick={() => { setEmergencyLevel(3); setHelpNowQuestion(false); onEmergency?.() }}
@@ -503,20 +415,14 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
                   </div>
                 </div>
               )}
-
-              {/* Input row */}
-              <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+              <div className="chat-input-row">
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && sendChat()}
                   placeholder={listening ? 'Listening...' : 'Type how you feel...'}
-                  style={{
-                    flex:1, padding:'8px 12px', borderRadius:20,
-                    border:`1.5px solid ${listening ? '#ef4444' : color + '55'}`,
-                    fontSize:12, fontFamily:'inherit',
-                    transition:'border-color 0.2s'
-                  }}
+                  className="chat-input"
+                  style={{ '--chat-border': listening ? '#ef4444' : `${color}55` }}
                 />
                 {speechSupported && (
                   <div className="mic-btn-wrapper">
@@ -530,23 +436,14 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
                     </button>
                   </div>
                 )}
-                <button onClick={sendChat} aria-label="Send chat message" style={{
-                  background: color, color:'white', border:'none',
-                  borderRadius:20, padding:'8px 14px', fontSize:12,
-                  cursor:'pointer', fontWeight:600, flexShrink:0,
-                  minHeight:44
-                }}>Send</button>
+                <button onClick={sendChat} aria-label="Send chat message" className="chat-send-btn" style={{ '--chat-send': color }}>Send</button>
               </div>
-
-              {/* Listening status label */}
               {listening && (
                 <div className="listening-label">
                   <span className="listening-dot" />
                   Listening… tap mic to stop
                 </div>
               )}
-
-              {/* ── Permanent safety footer */}
               <div className="chat-safety-footer">
                 Campus Police: 404-413-5717&nbsp;&nbsp;|&nbsp;&nbsp;Crisis Text Line: Text HOME to 741741
               </div>

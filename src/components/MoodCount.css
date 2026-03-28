@@ -1,0 +1,36 @@
+.mood-count-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mood-count-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mood-count-emoji {
+  font-size: 16px;
+}
+
+.mood-count-track {
+  flex: 1;
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mood-count-fill {
+  height: 100%;
+  background: var(--mood-fill);
+  border-radius: 4px;
+  transition: width 0.5s;
+}
+
+.mood-count-number {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 16px;
+}

@@ -1,5 +1,3 @@
-// ─── Shared constants used across multiple components ─────────────────────────
-
 export const MOODS = [
   { label: 'Happy',    emoji: '😊', color: '#4CAF50' },
   { label: 'Excited',  emoji: '🤩', color: '#FF9800' },
@@ -89,7 +87,7 @@ export const ALERT_CONFIG = {
     label: 'ANXIETY CLUSTER ALERT',
     message: loc =>
       `Anxiety cluster detected near ${loc}. Recommended: Deploy a peer support ambassador to this area. Consider sending a campus-wide breathing exercise notification.`,
-    buttonLabel: '🌬️ Send Campus Wellness Tip',
+    buttonLabel: 'Send Campus Wellness Tip',
     notification: 'Deep breath: Inhale 4 counts, hold 4, exhale 4. You\'ve got this. — GSU Wellness Team',
   },
   Stressed: {
@@ -97,7 +95,7 @@ export const ALERT_CONFIG = {
     label: 'HIGH STRESS ZONE ALERT',
     message: loc =>
       `High stress zone near ${loc}. Peak stress detected — possibly exam or deadline related. Recommended: Open the quiet study room, extend library hours, send a motivational message.`,
-    buttonLabel: '💪 Send Encouragement',
+    buttonLabel: 'Send Encouragement',
     notification: 'You\'re closer than you think. Keep going. — GSU Cares Team',
   },
   Sad: {
@@ -105,7 +103,7 @@ export const ALERT_CONFIG = {
     label: 'LOW MOOD CLUSTER ALERT',
     message: loc =>
       `Low mood cluster detected near ${loc}. Students may need connection. Recommended: Activate the buddy system — pair lonely students with peer mentors.`,
-    buttonLabel: '🤝 Activate Buddy System',
+    buttonLabel: 'Activate Buddy System',
     notification: 'Hey, you matter. A peer mentor will check in with you today. — GSU Connects',
   },
   Happy: {
@@ -113,7 +111,7 @@ export const ALERT_CONFIG = {
     label: 'POSITIVE ENERGY DETECTED',
     message: loc =>
       `Positive energy radiating from ${loc}! Great time to host a spontaneous community event or social activity here.`,
-    buttonLabel: '🎉 Share the Joy',
+    buttonLabel: 'Share the Joy',
     notification: 'Good vibes detected near the Student Center — come join the energy! — GSU Community',
   },
   Excited: {
@@ -121,24 +119,24 @@ export const ALERT_CONFIG = {
     label: 'HIGH ENERGY DETECTED',
     message: loc =>
       `Positive energy radiating from ${loc}! Great time to host a spontaneous community event or social activity here.`,
-    buttonLabel: '🎉 Share the Joy',
+    buttonLabel: 'Share the Joy',
     notification: 'Good vibes detected near the Student Center — come join the energy! — GSU Community',
   },
 }
 
 export const CRISIS_ACTIONS = [
   {
-    icon: '🏥',
+    icon: '',
     label: 'Open emergency counseling walk-ins',
     confirm: 'Walk-in center notified — opening immediately',
   },
   {
-    icon: '📢',
+    icon: '',
     label: 'Send campus-wide wellness notification',
     confirm: 'Notification queued for 2,847 student devices',
   },
   {
-    icon: '🤝',
+    icon: '',
     label: 'Deploy peer support team to hotspot zones',
     confirm: 'Team dispatched — ETA 4 minutes',
   },

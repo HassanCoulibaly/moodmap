@@ -1,6 +1,3 @@
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-// #22: Basic obfuscation for mood data (not true encryption, but prevents casual inspection)
 function encode(data) {
   try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))) }
   catch { return JSON.stringify(data) }
@@ -9,10 +6,8 @@ function encode(data) {
 function decode(raw) {
   if (!raw) return null
   try {
-    // Try decoding as base64 first
     return JSON.parse(decodeURIComponent(escape(atob(raw))))
   } catch {
-    // Fall back to plain JSON (backward compat with existing data)
     try { return JSON.parse(raw) }
     catch { return null }
   }

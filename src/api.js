@@ -1,10 +1,7 @@
-// In production (Vercel) the API functions are same-origin at /api/*
-// In development the Express server runs on localhost:3001
 const BASE = import.meta.env.PROD ? '' : 'http://localhost:3001'
 
 const FETCH_TIMEOUT = 20_000
 
-// Shared fetch wrapper with timeout and error parsing (#11)
 async function apiFetch(url, body) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
@@ -22,7 +19,9 @@ async function apiFetch(url, body) {
       try {
         const err = await response.json()
         if (err.error) msg = err.error
-      } catch { /* ignore parse failure */ }
+      } catch {
+        msg = response.statusText || msg
+      }
 
       if (response.status === 429) msg = 'Too many requests — please wait a moment'
       throw new Error(msg)
