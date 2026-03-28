@@ -1,5 +1,23 @@
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
+// #22: Basic obfuscation for mood data (not true encryption, but prevents casual inspection)
+function encode(data) {
+  try { return btoa(unescape(encodeURIComponent(JSON.stringify(data)))) }
+  catch { return JSON.stringify(data) }
+}
+
+function decode(raw) {
+  if (!raw) return null
+  try {
+    // Try decoding as base64 first
+    return JSON.parse(decodeURIComponent(escape(atob(raw))))
+  } catch {
+    // Fall back to plain JSON (backward compat with existing data)
+    try { return JSON.parse(raw) }
+    catch { return null }
+  }
+}
+
 export function getTodayStr() {
   return new Date().toISOString().split('T')[0]
 }
@@ -8,12 +26,15 @@ export function initJournalPins() {
   const today = getTodayStr()
   if (localStorage.getItem('moodmap_journal_date') !== today) {
     localStorage.setItem('moodmap_journal_date', today)
-    localStorage.setItem('moodmap_journal_pins', '[]')
+    localStorage.setItem('moodmap_journal_pins', encode([]))
     localStorage.removeItem('moodmap_journal_summary')
     return []
   }
-  try { return JSON.parse(localStorage.getItem('moodmap_journal_pins') || '[]') }
-  catch { return [] }
+  return decode(localStorage.getItem('moodmap_journal_pins')) || []
+}
+
+export function saveJournalPins(pins) {
+  localStorage.setItem('moodmap_journal_pins', encode(pins))
 }
 
 export function initStreak() {
@@ -36,10 +57,9 @@ export function bumpStreak() {
 }
 
 export function loadRecoveryStories() {
-  try { return JSON.parse(localStorage.getItem('moodmap_recovery_stories') || '[]') }
-  catch { return [] }
+  return decode(localStorage.getItem('moodmap_recovery_stories')) || []
 }
 
 export function saveRecoveryStories(s) {
-  localStorage.setItem('moodmap_recovery_stories', JSON.stringify(s))
+  localStorage.setItem('moodmap_recovery_stories', encode(s))
 }

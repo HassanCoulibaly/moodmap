@@ -1,11 +1,16 @@
-import { requireEnv, setCors, validateEntries, callGroq, safeError } from '../lib/groq.js'
+import {
+  requireEnv, setCors, setSecurityHeaders, checkRateLimit,
+  validateEntries, callGroq, safeError
+} from '../lib/groq.js'
 
 requireEnv()
 
 export default async function handler(req, res) {
+  setSecurityHeaders(res)
   setCors(req, res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
+  if (!checkRateLimit(req)) return res.status(429).json({ error: 'Too many requests. Please wait a moment.' })
 
   try {
     const entries = validateEntries(req.body?.entries)

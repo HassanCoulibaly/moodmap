@@ -1,14 +1,21 @@
 import 'dotenv/config'
 import express from 'express'
 import {
-  requireEnv, setCors, validateMood, validateMessage, validatePins, validateEntries,
+  requireEnv, setCors, setSecurityHeaders, rateLimitMiddleware,
+  validateMood, validateMessage, validatePins, validateEntries,
   isPositiveMood, callGroq, parseLLMJson, getBuilding, safeError
 } from './lib/groq.js'
 
-// Fail fast if GROQ_KEY is missing
+// Fail fast if LLM API key is missing
 requireEnv()
 
 const app = express()
+
+// Security headers on all responses (#17)
+app.use((req, res, next) => {
+  setSecurityHeaders(res)
+  next()
+})
 
 // CORS middleware — uses shared origin checking
 app.use((req, res, next) => {
@@ -18,6 +25,9 @@ app.use((req, res, next) => {
 })
 
 app.use(express.json({ limit: '50kb' }))
+
+// Rate limiting (#7)
+app.use('/api', rateLimitMiddleware)
 
 // ─── /api/insights ────────────────────────────────────────────────────────────
 

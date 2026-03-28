@@ -10,7 +10,7 @@ import {
 } from './constants'
 import { getTimeOfDay, getArea } from './utils'
 import {
-  initJournalPins, initStreak, bumpStreak,
+  initJournalPins, saveJournalPins, initStreak, bumpStreak,
   loadRecoveryStories, saveRecoveryStories,
 } from './storage'
 
@@ -31,6 +31,7 @@ export default function App() {
   const [pending, setPending] = useState(null)
   const [insights, setInsights] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [errorToast, setErrorToast] = useState(null)
   const [wavePinIds, setWavePinIds] = useState(new Set())
   const [newPinIds, setNewPinIds] = useState(new Set())
   const [waving, setWaving] = useState(false)
@@ -87,7 +88,7 @@ export default function App() {
   }, [pins])
 
   useEffect(() => {
-    localStorage.setItem('moodmap_journal_pins', JSON.stringify(userPins))
+    saveJournalPins(userPins)
   }, [userPins])
 
   useEffect(() => {
@@ -214,7 +215,10 @@ export default function App() {
       const { summary } = await getJournalSummary(journalPins)
       setJournalSummary(summary)
       localStorage.setItem('moodmap_journal_summary', summary)
-    } catch { /* fail silently */ }
+    } catch(e) {
+      setErrorToast(e.message || 'Could not generate journal')
+      setTimeout(() => setErrorToast(null), 5000)
+    }
     setLoadingJournal(false)
   }
 
@@ -294,12 +298,15 @@ export default function App() {
       setInsights(result)
       setLastUpdated(Date.now())
     } catch(e) {
+      const errMsg = e.message || 'Could not reach AI'
       setInsights({
         hotspot: 'Could not reach AI — check your API key in .env',
         dominant: '?',
-        alert: e.message,
+        alert: errMsg,
         vibe: '?'
       })
+      setErrorToast(errMsg)
+      setTimeout(() => setErrorToast(null), 5000)
     }
     setLoading(false)
   }
@@ -376,9 +383,12 @@ export default function App() {
 
   function handleFeelBetter() {
     if (!companion) return
-    setPins(prev => prev.map(p =>
-      p.id === companion.pinId ? { ...p, color: p.color + '99' } : p
-    ))
+    setPins(prev => prev.map(p => {
+      if (p.id !== companion.pinId) return p
+      // #21: prevent double-appending alpha — only add '99' to 7-char hex
+      const safeColor = p.color.length === 7 ? p.color + '99' : p.color
+      return { ...p, color: safeColor }
+    }))
     setCompanion(null)
   }
 
@@ -429,7 +439,11 @@ export default function App() {
       <div className="app-layout" style={{ flex:1, display:'flex', overflow:'hidden' }}>
 
         {/* ── Map ──────────────────────────────────────────────────────── */}
-        <div className="app-map-area" style={{ flex:1, position:'relative' }}>
+        <div className="app-map-area" style={{ flex:1, position:'relative' }} role="region" aria-label="Campus mood map">
+          {/* #13: Screen reader summary */}
+          <div className="sr-only" aria-live="polite">
+            {pins.length} mood pins on campus. Dominant mood: {dominantMood || 'none'}.
+          </div>
           <MapContainer
             ref={mapRef}
             center={GSU_CENTER}
@@ -894,6 +908,19 @@ export default function App() {
       )}
 
       {resetFlash && <div className="demo-flash">✅ Demo reset!</div>}
+
+      {/* Error toast (#11) */}
+      {errorToast && (
+        <div className="error-toast" role="alert">
+          <span style={{ marginRight:8 }}>⚠️</span>
+          {errorToast}
+          <button
+            onClick={() => setErrorToast(null)}
+            aria-label="Dismiss error"
+            style={{ marginLeft:12, background:'none', border:'none', color:'white', fontSize:16, cursor:'pointer', lineHeight:1 }}
+          >✕</button>
+        </div>
+      )}
 
       {/* Join Happy Place warm message toast */}
       {joinToast && (

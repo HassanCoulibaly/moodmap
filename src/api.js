@@ -2,43 +2,56 @@
 // In development the Express server runs on localhost:3001
 const BASE = import.meta.env.PROD ? '' : 'http://localhost:3001'
 
+const FETCH_TIMEOUT = 20_000
+
+// Shared fetch wrapper with timeout and error parsing (#11)
+async function apiFetch(url, body) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      let msg = 'Something went wrong'
+      try {
+        const err = await response.json()
+        if (err.error) msg = err.error
+      } catch { /* ignore parse failure */ }
+
+      if (response.status === 429) msg = 'Too many requests — please wait a moment'
+      throw new Error(msg)
+    }
+
+    return await response.json()
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('Request timed out — please try again')
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function getAIInsights(pins) {
   if (pins.length === 0) return null
-  const response = await fetch(`${BASE}/api/insights`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pins })
-  })
-  if (!response.ok) throw new Error('Server error')
-  return await response.json()
+  return apiFetch(`${BASE}/api/insights`, { pins })
 }
 
 export async function getAIComfort(mood, extras = {}) {
-  const response = await fetch(`${BASE}/api/comfort`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mood, ...extras })
-  })
-  if (!response.ok) throw new Error('Server error')
-  return await response.json()
+  return apiFetch(`${BASE}/api/comfort`, { mood, ...extras })
 }
 
 export async function getAIChat(mood, message) {
-  const response = await fetch(`${BASE}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mood, message })
-  })
-  if (!response.ok) throw new Error('Server error')
-  return await response.json()
+  return apiFetch(`${BASE}/api/chat`, { mood, message })
 }
 
 export async function getJournalSummary(entries) {
-  const response = await fetch(`${BASE}/api/journal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entries })
-  })
-  if (!response.ok) throw new Error('Server error')
-  return await response.json()
+  return apiFetch(`${BASE}/api/journal`, { entries })
 }

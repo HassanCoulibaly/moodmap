@@ -1,13 +1,18 @@
-import { requireEnv, setCors, validateMood, isPositiveMood, callGroq, parseLLMJson, safeError } from '../lib/groq.js'
+import {
+  requireEnv, setCors, setSecurityHeaders, checkRateLimit,
+  validateMood, isPositiveMood, callGroq, parseLLMJson, safeError
+} from '../lib/groq.js'
 
 requireEnv()
 
 function ordinal(n) { return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th` }
 
 export default async function handler(req, res) {
+  setSecurityHeaders(res)
   setCors(req, res)
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).end()
+  if (!checkRateLimit(req)) return res.status(429).json({ error: 'Too many requests. Please wait a moment.' })
 
   try {
     const mood = validateMood(req.body?.mood)

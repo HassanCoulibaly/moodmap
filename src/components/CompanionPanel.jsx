@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { POSITIVE_MOODS } from '../constants'
 import { detectLevel } from '../utils'
 import { getAIComfort, getAIChat } from '../api'
@@ -13,6 +13,8 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
   const [chatTyping, setChatTyping] = useState(false)
   // 0=none, 1=L1 emotional, 2=L2 soft threat, 3=L3 full emergency
   const [emergencyLevel, setEmergencyLevel] = useState(0)
+  const emergencyLevelRef = useRef(0) // #6: sync ref to avoid stale closures
+  const [comfortError, setComfortError] = useState(false)
   const [helpNowQuestion, setHelpNowQuestion] = useState(false)
   const msgTimestampsRef = useRef([])
   const [happyPlaceDecided, setHappyPlaceDecided] = useState(false)
@@ -25,11 +27,16 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
   const activeHappyPlaces = happyPlaces.filter(p => !p.expired)
   const speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
+  // #16: memoize extras to stabilize dependency
+  const stableExtras = useMemo(() => extras, [extras.timeOfDay, extras.pinNumber, extras.randomSeed])
+
   useEffect(() => {
-    getAIComfort(mood, extras).then(data => {
+    setComfortError(false)
+    getAIComfort(mood, stableExtras).then(data => {
       setComfort(data)
       setTyping(false)
     }).catch(() => {
+      setComfortError(true)
       setComfort({
         message: "I'm here with you. Whatever you're feeling right now is valid.",
         action: "Take three slow, deep breaths.",
@@ -40,7 +47,7 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
       })
       setTyping(false)
     })
-  }, [mood])
+  }, [mood, stableExtras])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -112,15 +119,16 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
     const msgLevel = detectLevel(msg)
 
     // ── Apply escalation: 3+ rapid msgs while already L1/L2 bumps level
-    let effectiveLevel = msgLevel
-    setEmergencyLevel(prev => {
-      if (recentCount >= 3 && prev >= 1) {
-        effectiveLevel = Math.min(3, Math.max(msgLevel, prev + 1))
-      } else {
-        effectiveLevel = Math.max(msgLevel, prev)
-      }
-      return effectiveLevel
-    })
+    // #6 FIX: Read from ref (always current) instead of relying on setState callback
+    const prev = emergencyLevelRef.current
+    let effectiveLevel
+    if (recentCount >= 3 && prev >= 1) {
+      effectiveLevel = Math.min(3, Math.max(msgLevel, prev + 1))
+    } else {
+      effectiveLevel = Math.max(msgLevel, prev)
+    }
+    setEmergencyLevel(effectiveLevel)
+    emergencyLevelRef.current = effectiveLevel
 
     // ── L3: Full emergency
     if (effectiveLevel >= 3) {
@@ -159,6 +167,7 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
 
   function handleSafe() {
     setEmergencyLevel(0)
+    emergencyLevelRef.current = 0
     setHelpNowQuestion(false)
     onSafeConfirmed?.()
     setChatHistory(h => [...h, {
@@ -221,6 +230,12 @@ export default function CompanionPanel({ mood, color, onClose, onFeelBetter, ext
         </div>
       ) : comfort && (
         <>
+          {/* Error notice */}
+          {comfortError && (
+            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:10, padding:'8px 12px', marginBottom:10, fontSize:11, color:'#991b1b', lineHeight:1.5 }}>
+              ⚠️ Couldn't reach the AI — showing a fallback message
+            </div>
+          )}
           {/* Message */}
           <div style={{ background: bg, border, borderRadius:12, padding:12, marginBottom:10, fontSize:13, lineHeight:1.7, color:'#333' }}>
             {comfort.message}
