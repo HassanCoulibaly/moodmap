@@ -6,6 +6,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  increment,
   onSnapshot,
   query,
   orderBy,
@@ -33,7 +34,19 @@ export const db = getFirestore(app)
 export async function pushMoodPin({ lat, lng, mood, color, emoji, time, timestamp, deviceId }) {
   return addDoc(collection(db, 'mood_pins'), {
     lat, lng, mood, color, emoji, time, timestamp,
-    deviceId: deviceId || null,   // stored but intentionally not exposed to the map UI
+    deviceId:     deviceId || null,  // internal — stripped before handing to the UI
+    supportCount: 0,                 // incremented atomically via incrementPinSupport()
+  })
+}
+
+/**
+ * Atomically increment the supportCount on a pin.
+ * Uses Firestore's server-side increment so concurrent writes from multiple
+ * clients never race or overwrite each other.
+ */
+export async function incrementPinSupport(pinId) {
+  return updateDoc(doc(db, 'mood_pins', pinId), {
+    supportCount: increment(1),
   })
 }
 
@@ -55,11 +68,15 @@ export async function deleteMoodPin(pinId) {
 
 /**
  * Subscribe to the latest 300 community pins in real-time.
- * `onAdded` is called once per new document that arrives — including the
- * initial load and any subsequent writes from other clients.
+ *
+ * `onAdded`    — called for every new document (initial load + live inserts).
+ * `onModified` — optional; called when an existing document changes (e.g.
+ *                supportCount incremented by another client). Pass a handler
+ *                to keep the local pin list in sync without a full reload.
+ *
  * Returns the unsubscribe function to clean up on unmount.
  */
-export function subscribeToPins(onAdded) {
+export function subscribeToPins(onAdded, onModified) {
   const q = query(
     collection(db, 'mood_pins'),
     orderBy('timestamp', 'asc'),
@@ -67,12 +84,12 @@ export function subscribeToPins(onAdded) {
   )
   return onSnapshot(q, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        const data = change.doc.data()
-        // Strip deviceId before handing the pin to the UI — it's internal
-        const { deviceId: _omit, ...pinData } = data
-        onAdded({ id: change.doc.id, ...pinData })
-      }
+      // Strip deviceId before handing anything to the UI — it's internal
+      const { deviceId: _omit, ...pinData } = change.doc.data()
+      const pin = { id: change.doc.id, ...pinData }
+
+      if (change.type === 'added')               onAdded(pin)
+      if (change.type === 'modified' && onModified) onModified(pin)
     })
   })
 }
