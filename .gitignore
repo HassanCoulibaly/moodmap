@@ -22,4 +22,5 @@ Thumbs.db
 .eslintcache
 .vercel/
 coverage/
-file.md
+*.md
+!README.md
