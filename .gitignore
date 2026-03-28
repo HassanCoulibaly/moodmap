@@ -1,7 +1,6 @@
 node_modules/
 dist/
 
-# Logs
 logs/
 *.log
 npm-debug.log*
@@ -9,18 +8,16 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Local env files (keep templates)
 .env
 .env.*
 !.env.example
 
-# Editor and OS files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Tooling caches
+./claude
 .cache/
 .eslintcache
 .vercel/
