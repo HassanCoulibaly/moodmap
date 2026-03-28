@@ -22,7 +22,6 @@ import RecoveryFeed from './components/RecoveryFeed'
 import CrisisPanel from './components/CrisisPanel'
 import MoodJournal from './components/MoodJournal'
 import RelativeTime from './components/RelativeTime'
-import ReelGenerator from './components/ReelGenerator'
 
 export default function App() {
   const [pins, setPins] = useState(SEED_PINS)
@@ -753,8 +752,6 @@ export default function App() {
           >
             {waving ? 'Spreading…' : loading ? 'Analysing…' : 'Simulate Stress Wave'}
           </button>
-
-          <ReelGenerator pins={pins} />
 
           {lastUpdated && (
             <div className="last-updated-text">
