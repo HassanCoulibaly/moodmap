@@ -823,3 +823,240 @@
   box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   transition: opacity 0.5s;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ FOCUS STYLES — visible keyboard indicators ═══════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Undo for circle buttons that look weird with outline */
+.mic-btn:focus-visible,
+.heart-btn:focus-visible,
+.emergency-btn:focus-visible {
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+.emergency-btn:focus-visible {
+  border-radius: 14px;
+}
+
+/* Remove outline:none from inputs — replaced with focus-visible above */
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 0;
+  border-radius: 10px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ COLOR CONTRAST FIXES — WCAG AA compliant ════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Old #888 → #636363 (4.95:1 on white) */
+/* Old #aaa → #767676 (4.54:1 on white) — exact WCAG AA threshold */
+/* Old #bbb → #767676 */
+/* Old #999 → #717171 */
+/* Old #ccc on white → #767676 */
+
+.chat-safety-footer {
+  color: #767676;
+}
+
+.emergency-tap-link {
+  color: #767676;
+}
+.emergency-tap-link:hover {
+  color: #555;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ TOUCH TARGETS — 44px minimum ════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.mic-btn {
+  width: 44px;
+  height: 44px;
+  font-size: 18px;
+}
+
+.heart-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.crisis-confirm-btn {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.alert-action-btn {
+  min-height: 44px;
+}
+
+.help-now-btn {
+  min-height: 44px;
+}
+
+.help-now-yes,
+.help-now-no {
+  min-height: 44px;
+}
+
+.emergency-btn {
+  min-height: 52px;
+}
+
+.reset-btn {
+  min-height: 44px;
+  padding: 10px 18px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══ MOBILE RESPONSIVENESS ═══════════════════════════════════════════════= */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── Layout: stack sidebar below map ──────────────────────────────── */
+  .app-layout {
+    flex-direction: column !important;
+  }
+
+  .app-sidebar {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid #e0e0e0;
+    max-height: 45vh;
+    flex-shrink: 0;
+  }
+
+  .app-map-area {
+    flex: 1;
+    min-height: 50vh;
+  }
+
+  /* ── Companion panel: full-width bottom sheet ────────────────────── */
+  .companion-panel-wrapper {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 75vh;
+    z-index: 1001 !important;
+    border-radius: 16px 16px 0 0;
+    overflow-y: auto;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+  }
+
+  .companion-panel {
+    border-radius: 16px 16px 0 0;
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+
+  /* ── Update mood panel: wider on mobile ──────────────────────────── */
+  .update-panel-wrapper {
+    width: 92vw !important;
+    max-width: 400px;
+  }
+
+  /* ── Mood picker: wider on mobile ────────────────────────────────── */
+  .mood-picker {
+    width: 92vw !important;
+    max-width: 400px;
+  }
+
+  .mood-picker-btn {
+    padding: 12px 10px !important;
+    min-height: 64px;
+  }
+
+  /* ── Header: tighter on mobile ───────────────────────────────────── */
+  .app-header {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  .app-header-title {
+    font-size: 17px !important;
+  }
+
+  .app-header-sub {
+    font-size: 10px !important;
+  }
+
+  .app-header-badge {
+    font-size: 11px !important;
+    padding: 3px 10px !important;
+  }
+
+  /* ── Live counter: smaller on mobile ─────────────────────────────── */
+  .live-counter {
+    font-size: 11px;
+    padding: 5px 14px;
+    top: 8px;
+    max-width: calc(100vw - 32px);
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
+  /* ── Emergency overlay: mobile safe ──────────────────────────────── */
+  .emergency-box {
+    padding: 24px 18px;
+    max-width: 95vw;
+  }
+
+  .emergency-title {
+    font-size: 19px;
+  }
+
+  .emergency-btn {
+    padding: 15px;
+    font-size: 15px;
+  }
+
+  /* ── Sidebar cards: full-bleed spacing ───────────────────────────── */
+  .app-sidebar {
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  /* ── Toast and flash: mobile positioning ─────────────────────────── */
+  .join-toast {
+    max-width: 92vw;
+    bottom: 16px;
+    padding: 14px 18px;
+  }
+
+  .demo-flash {
+    bottom: 16px;
+    font-size: 12px;
+  }
+
+  .reset-btn {
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .reset-confirm {
+    bottom: 52px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-width: 320px;
+  }
+}

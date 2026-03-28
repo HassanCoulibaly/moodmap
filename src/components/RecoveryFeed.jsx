@@ -1,0 +1,43 @@
+export default function RecoveryFeed({ stories, onHeart }) {
+  function timeAgo(ts) {
+    const min = Math.floor((Date.now() - ts) / 60000)
+    if (min < 1) return 'just now'
+    if (min < 60) return `${min} min ago`
+    return `${Math.floor(min / 60)} hr ago`
+  }
+  return (
+    <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #eee' }}>
+      <div style={{ fontWeight:600, fontSize:13, marginBottom:10, color:'#333', display:'flex', alignItems:'center', gap:6 }}>
+        <span>💫</span> Recovery Stories from Campus
+      </div>
+      {stories.length === 0 ? (
+        <div style={{ fontSize:12, color:'#767676', textAlign:'center', padding:'12px 0', lineHeight:1.7 }}>
+          Update one of your mood pins to share your recovery journey anonymously — inspire others
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {stories.slice(0, 5).map(s => (
+            <div key={s.id} className="story-card">
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                <span style={{ fontSize:17 }}>{s.fromEmoji} → {s.toEmoji}</span>
+                <span style={{ fontSize:10, color:'#767676' }}>{timeAgo(s.timestamp)}</span>
+              </div>
+              <div style={{ fontSize:11, color:'#767676', marginBottom:5 }}>Near {s.area}</div>
+              <div style={{ fontSize:12, color:'#555', lineHeight:1.7, fontStyle:'italic', marginBottom:8 }}>
+                "{s.story}"
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button className="heart-btn" onClick={() => onHeart(s.id)} aria-label="Heart this recovery story">❤️</button>
+                <span style={{ fontSize:11, color:'#767676' }}>
+                  {s.hearts > 0
+                    ? `This helped ${s.hearts} ${s.hearts === 1 ? 'person' : 'people'} today`
+                    : 'Be the first to find this helpful'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
