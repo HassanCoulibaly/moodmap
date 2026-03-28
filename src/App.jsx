@@ -455,12 +455,8 @@ export default function App() {
     : resolutionMode
       ? 'live-counter live-counter-success'
       : 'live-counter'
-  const mapTileUrl = theme === 'dark'
-    ? 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-  const mapTileAttribution = theme === 'dark'
-    ? '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; OpenStreetMap contributors'
-    : '&copy; OpenStreetMap contributors'
+  const mapTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  const mapTileAttribution = '&copy; OpenStreetMap contributors'
 
   return (
     <div className={`app-root${companion ? ' companion-open' : ''}`}>
